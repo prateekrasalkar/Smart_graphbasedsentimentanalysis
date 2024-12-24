@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Social Network Analysis</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-gray-50">
+    <!-- Notification Element -->
+    <div id="notification" class="notification">
+        <div class="flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span id="notificationMessage"></span>
+        </div>
+    </div>
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-5xl font-bold text-gray-800" style="font-family: 'Poppins', sans-serif">Smart Social
+                Network Analysis</h1>
+            <p class="text-black mt-3" style="font-family: 'Poppins', sans-serif">Automatic relationship prediction
+                based on content analysis</p>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column - Forms -->
+            <div class="space-y-6">
+                <!-- Add User Form -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-center" style="font-family: 'Poppins', sans-serif">Add
+                        New User</h2>
+                    <form id="userForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">User ID</label>
+                            <input type="text" name="user_id" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Name</label>
+                            <input type="text" name="name" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors">Add
+                            User</button>
+                    </form>
+                </div>
+
+                <!-- Add Post Form -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-center" style="font-family: 'Poppins', sans-serif">Create
+                        New Post</h2>
+                    <form id="postForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">User</label>
+                            <select name="user_id" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <!-- Options will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Content</label>
+                            <textarea name="content" required rows="4"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Create
+                            Post</button>
+                    </form>
+                </div>
+
+                <!-- User Posts List -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4" id="postsHeader">Recent Posts</h2>
+                    <div id="userPosts" class="space-y-4">
+                        <!-- Posts will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Graph and Info -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Network Graph -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-center" style="font-family: 'Poppins', sans-serif;">
+                        Network Graph</h2>
+                    <p class="text-[16px] text-black mb-4 text-center font-medium"
+                        style="font-family: 'Poppins', sans-serif;">
+                        Relationships are automatically predicted based on content
+                        similarity and sentiment analysis
+                    </p>
+                    <div id="graph" class="w-full h-[600px] border border-gray-200 rounded-lg"></div>
+                    <div class="mt-4 flex justify-center space-x-4">
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 rounded-full bg-green-500"></div>
+                            <span class="ml-2 text-sm">Positive</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 rounded-full bg-red-500"></div>
+                            <span class="ml-2 text-sm">Negative</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 rounded-full bg-gray-500"></div>
+                            <span class="ml-2 text-sm">Neutral</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Undo Notification -->
+    <div id="undoNotification"
+        class="hidden fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg undo-notification flex items-center space-x-4">
+        <span>Post deleted</span>
+        <button id="undoButton" class="text-blue-400 hover:text-blue-300 font-medium">Undo</button>
+    </div>
+
+    <script>
+        // Global variables
+        const API_BASE_URL = 'http://localhost:5001/api';
+        let simulation;
+
+        // Add these functions to your existing JavaScript
+
+        let lastDeletedPost = null;
+        let undoTimeout = null;
+
+        // Notification function
+        const showNotification = (message, type = 'success') => {
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notificationMessage');
+
+            // Set message and color based on type
+            notificationMessage.textContent = message;
+            notification.style.backgroundColor = type === 'success' ? '#10B981' : '#EF4444';
+
+            // Show notification
+            notification.classList.add('show');
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        };
+
+        const deletePost = async (postId) => {
+            try {
+                const response = await fetchAPI(`/posts/${postId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.success) {
+                    // Store the deleted post data
+                    const postElement = document.querySelector(`[data-post-id="${postId}"]`);
+                    lastDeletedPost = {
+                        id: postId,
+                        element: postElement.outerHTML
+                    };
+
+                    // Remove the post with animation
+                    postElement.style.opacity = '0';
+                    setTimeout(() => postElement.remove(), 300);
+
+                    // Show undo notification
+                    showUndoNotification();
+
+                    // Update graph
+                    await updateGraph();
+                }
+            } catch (error) {
+                console.log('Error deleting post: ' + error.message, 'error');
+            }
+        };
+
+        const undoDelete = async () => {
+            if (!lastDeletedPost) return;
+
+            try {
+                const response = await fetchAPI(`/posts/${lastDeletedPost.id}/restore`, {
+                    method: 'POST'
+                });
+
+                if (response.success) {
+                    // Refresh posts to show the restored post
+                    await updateRecentPosts();
+                    await updateGraph();
+                    hideUndoNotification();
+                    showNotification('Post restored successfully!');
+                }
+            } catch (error) {
+                console.log('Error restoring post: ' + error.message, 'error');
+            }
+        };
+
+        const showUndoNotification = () => {
+            const notification = document.getElementById('undoNotification');
+            notification.classList.remove('hidden');
+
+            // Clear existing timeout
+            if (undoTimeout) clearTimeout(undoTimeout);
+
+            // Set new timeout
+            undoTimeout = setTimeout(() => {
+                hideUndoNotification();
+            }, 5000);
+        };
+
+        const hideUndoNotification = () => {
+            const notification = document.getElementById('undoNotification');
+            notification.classList.add('hidden');
+            lastDeletedPost = null;
+        };
+
+
+        // Load users into select with option to select newly added user
+        const loadUsers = async (selectUserId = null) => {
+            try {
+                const users = await fetchAPI('/users');
+                const select = document.querySelector('select[name="user_id"]');
+                select.innerHTML = '<option value="">Select a user...</option>' +
+                    users.map(user => `<option value="${user.user_id}" ${user.user_id === selectUserId ? 'selected' : ''}>${user.name}</option>`).join('');
+
+                // If a specific user should be selected
+                if (selectUserId) {
+                    select.value = selectUserId;
+                    loadPosts(selectUserId);
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                console.log('Error loading users', 'error');
+            }
+        };
+
+        // Utility functions
+        const fetchAPI = async (endpoint, options = {}) => {
+            console.log(`Calling API: ${endpoint}`, options);  // Debug log
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+
+            const data = await response.json();
+            console.log(`API Response:`, data);  // Debug log
+
+            if (!response.ok) {
+                throw new Error(data.error || response.statusText);
+            }
+
+            return data;
+        };
+
+        // Handle user form submission
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const userData = Object.fromEntries(formData);
+
+            console.log('Submitting user data:', userData);  // Debug log
+
+            try {
+                const response = await fetchAPI('/users', {
+                    method: 'POST',
+                    body: JSON.stringify(userData)
+                });
+
+                console.log('User creation response:', response);  // Debug log
+
+                if (response.success) {
+                    showNotification(`User ${userData.name} added successfully!`);
+                    e.target.reset();
+                    await loadUsers(userData.user_id);
+                    updateGraph();
+                } else {
+                    throw new Error(response.error || 'Failed to create user');
+                }
+            } catch (error) {
+                console.error('Error creating user:', error);
+                console.log('Error creating user: ' + error.message, 'error');
+            }
+        });
+
+        // Add this new function for recent posts
+        // Update the updateRecentPosts function
+        const updateRecentPosts = async () => {
+            try {
+                const posts = await fetchAPI('/recent-posts');
+                const postsContainer = document.getElementById('userPosts');
+                const postsHeader = document.getElementById('postsHeader');
+                postsHeader.textContent = 'Recent Posts';
+
+                postsContainer.innerHTML = posts.map(post => `
+                    <div class="post-card bg-white rounded-lg shadow p-4 border-l-4 ${getSentimentColor(post.sentiment)} mb-4"
+                         data-post-id="${post.post_id}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-2">
+                                    <span class="font-medium text-gray-800">${post.user_name}</span>
+                                    <span class="mx-2 text-gray-400">•</span>
+                                    <span class="text-sm text-gray-500">
+                                        ${new Date(post.timestamp).toLocaleString()}
+                                    </span>
+                                </div>
+                                <p class="text-gray-800 whitespace-pre-wrap">${post.content}</p>
+                                <div>
+                                <button onclick="deletePost('${post.post_id}')"class="delete-button ml-4">
+        <span class="trash-icon"></span>
+                           </button>
+                      </div>
+
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading recent posts:', error);
+                showNotification('Error loading recent posts: ' + error.message, 'error');
+            }
+        };
+        // Add event listener for undo button
+        document.getElementById('undoButton').addEventListener('click', undoDelete);
+
+
+
+        // Handle post form submission
+        // Modify the post form submission handler
+        document.getElementById('postForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const postData = Object.fromEntries(formData);
+
+            try {
+                const response = await fetchAPI('/posts', {
+                    method: 'POST',
+                    body: JSON.stringify(postData)
+                });
+
+                if (response.success) {
+                    showNotification('Post created successfully!');
+                    document.querySelector('textarea[name="content"]').value = '';
+
+                    // Wait a short time for Neo4j to process the relationships
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Update both graph and posts
+                    await Promise.all([
+                        updateGraph(),
+                        loadPosts(postData.user_id),
+                        updateRecentPosts()
+                    ]);
+                } else {
+                    throw new Error(response.error || 'Failed to create post');
+                }
+            } catch (error) {
+                console.error('Error creating post:', error);
+                console.log('Error creating post: ' + error.message, 'error');
+            }
+        });
+
+        // Add event listener for emoji picker
+        document.addEventListener('DOMContentLoaded', () => {
+            const emojiPicker = document.createElement('div');
+            emojiPicker.id = 'emoji-picker';
+            emojiPicker.className = 'p-2 bg-white rounded shadow-lg hidden absolute z-50';
+
+            const commonEmojis = ['😊', '😄', '😃', '😍', '😢', '😭', '😡', '😠', '👍', '👎', '❤️', '💔'];
+
+            emojiPicker.innerHTML = commonEmojis.map(emoji =>
+                `<button class="p-1 hover:bg-gray-100 rounded">${emoji}</button>`
+            ).join('');
+
+            document.body.appendChild(emojiPicker);
+
+            // Add emoji button next to the content textarea
+            const textarea = document.querySelector('textarea[name="content"]');
+            const emojiButton = document.createElement('button');
+            emojiButton.type = 'button';
+            emojiButton.className = 'absolute right-2 top-2 p-1 text-gray-500 hover:text-gray-700';
+            emojiButton.innerHTML = '😊';
+
+            textarea.parentElement.style.position = 'relative';
+            textarea.parentElement.appendChild(emojiButton);
+
+            // Handle emoji picker toggle
+            emojiButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                const rect = emojiButton.getBoundingClientRect();
+                emojiPicker.style.top = `${rect.bottom + window.scrollY}px`;
+                emojiPicker.style.left = `${rect.left}px`;
+                emojiPicker.classList.toggle('hidden');
+            });
+
+            // Handle emoji selection
+            emojiPicker.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const emoji = e.target.textContent;
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    textarea.value = textarea.value.substring(0, start) + emoji + textarea.value.substring(end);
+                    emojiPicker.classList.add('hidden');
+                    textarea.focus();
+                }
+            });
+
+            // Close emoji picker when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!emojiPicker.contains(e.target) && e.target !== emojiButton) {
+                    emojiPicker.classList.add('hidden');
+                }
+            });
+        });
+
+        // Update the loadPosts function
+        const loadPosts = async (userId) => {
+            if (!userId) return;
+            try {
+                const posts = await fetchAPI(`/users/${userId}/posts`);
+                const user = document.querySelector('select[name="user_id"] option:checked').text;
+                const postsHeader = document.getElementById('postsHeader');
+                postsHeader.textContent = `Recent Posts by ${user}`;
+
+                const postsContainer = document.getElementById('userPosts');
+                postsContainer.innerHTML = posts.map(post => `
+                    <div class="post-card bg-white rounded-lg shadow p-4 border-l-4 ${getSentimentColor(post.sentiment)} mb-4"
+                         data-post-id="${post.post_id}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-2">
+                                    <span class="font-medium text-gray-800">${post.user_name}</span>
+                                    <span class="mx-2 text-gray-400">•</span>
+                                    <span class="text-sm text-gray-500">
+                                        ${new Date(post.timestamp).toLocaleString()}
+                                    </span>
+                                </div>
+                                <p class="text-gray-800 whitespace-pre-wrap">${post.content}</p>
+                            </div>
+                            <button onclick="deletePost('${post.post_id}')"
+                                    class="delete-button ml-4">
+                                <span class="trash-icon"></span>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading posts:', error);
+                console.log('Error loading posts' + error.message, 'error');
+            }
+        };
+
+        // Helper function for sentiment colors
+        const getSentimentColor = (sentiment) => {
+            const colors = {
+                positive: 'border-green-500',
+                negative: 'border-red-500',
+                neutral: 'border-gray-500'
+            };
+            return colors[sentiment] || colors.neutral;
+        };
+
+        // Network graph visualization
+        const initGraph = () => {
+            const width = document.getElementById('graph').clientWidth;
+            const height = 600;
+
+            const svg = d3.select('#graph')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            simulation = d3.forceSimulation()
+                .force('link', d3.forceLink().id(d => d.id))
+                .force('charge', d3.forceManyBody().strength(-400))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+
+            return svg;
+        };
+
+        const updateGraph = async () => {
+            try {
+                const data = await fetchAPI('/graph');
+                const svg = d3.select('#graph svg');
+                const width = document.getElementById('graph').clientWidth;
+                const height = 600;
+
+                // Clear existing elements
+                svg.selectAll('*').remove();
+
+                // Create arrow marker
+                svg.append('defs').append('marker')
+                    .attr('id', 'arrowhead')
+                    .attr('viewBox', '0 -5 10 10')
+                    .attr('refX', 25)
+                    .attr('refY', 0)
+                    .attr('orient', 'auto')
+                    .attr('markerWidth', 8)
+                    .attr('markerHeight', 8)
+                    .attr('markerUnits', 'userSpaceOnUse')
+                    .append('path')
+                    .attr('d', 'M0,-5L10,0L0,5')
+                    .attr('fill', '#999');
+
+                // Create container with zoom capability
+                const container = svg.append('g');
+
+                // Add zoom behavior
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 4])
+                    .on('zoom', (event) => {
+                        container.attr('transform', event.transform);
+                    });
+
+                svg.call(zoom);
+
+                // Create the links
+                const links = container.append('g')
+                    .selectAll('line')
+                    .data(data.edges)
+                    .enter()
+                    .append('line')
+                    .attr('class', 'link')
+                    .attr('marker-end', 'url(#arrowhead)');
+
+                // Create the nodes
+                const nodes = container.append('g')
+                    .selectAll('circle')
+                    .data(data.nodes)
+                    .enter()
+                    .append('circle')
+                    .attr('class', 'node')
+                    .attr('r', 10)
+                    .attr('fill', d => {
+                        const colors = {
+                            positive: '#10B981',
+                            negative: '#EF4444',
+                            neutral: '#6B7280'
+                        };
+                        return colors[d.sentiment] || colors.neutral;
+                    });
+
+                // Add labels
+                const labels = container.append('g')
+                    .selectAll('text')
+                    .data(data.nodes)
+                    .enter()
+                    .append('text')
+                    .attr('class', 'node-label')
+                    .attr('dy', -15)
+                    .text(d => d.name);
+
+                // Update simulation with adjusted forces
+                simulation
+                    .nodes(data.nodes)
+                    .force('link', d3.forceLink(data.edges).id(d => d.id).distance(100))
+                    .force('charge', d3.forceManyBody().strength(-300))
+                    .force('center', d3.forceCenter(width / 2, height / 2))
+                    .force('collision', d3.forceCollide().radius(30));
+
+                // Add tick handler
+                simulation.on('tick', () => {
+                    links
+                        .attr('x1', d => d.source.x)
+                        .attr('y1', d => d.source.y)
+                        .attr('x2', d => d.target.x)
+                        .attr('y2', d => d.target.y);
+
+                    nodes
+                        .attr('cx', d => d.x)
+                        .attr('cy', d => d.y);
+
+                    labels
+                        .attr('x', d => d.x)
+                        .attr('y', d => d.y);
+                });
+
+                // Add drag behavior
+                nodes.call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+
+                // Initial zoom to fit
+                const bounds = container.node().getBBox();
+                const dx = bounds.width;
+                const dy = bounds.height;
+                const x = bounds.x + dx / 2;
+                const y = bounds.y + dy / 2;
+
+                svg.transition().duration(750).call(
+                    zoom.transform,
+                    d3.zoomIdentity
+                        .translate(width / 2, height / 2)
+                        .scale(Math.min(0.9, 0.9 / Math.max(dx / width, dy / height)))
+                        .translate(-x, -y)
+                );
+
+            } catch (error) {
+                console.error('Error updating graph:', error);
+                console.log('Error updating graph: ' + error.message, 'error');
+            }
+        };
+
+
+        // Drag functions
+        function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+
+        function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initGraph();
+            loadUsers();
+            updateGraph();
+            updateRecentPosts(); // Load initial recent posts
+
+            // Add change listener for user select
+            document.querySelector('select[name="user_id"]').addEventListener('change', (e) => {
+                if (e.target.value) {
+                    loadPosts(e.target.value);
+                } else {
+                    updateRecentPosts(); // Show all recent posts when no user is selected
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
